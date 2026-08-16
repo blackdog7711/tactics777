@@ -216,25 +216,6 @@
     .away { background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); }
     .gk { background: linear-gradient(135deg, #facc15 0%, #ca8a04 100%); color: #000; }
     .ball { background: #ffffff; color: #000; border: 2.5px solid #18181b; width: 24px; height: 24px; font-size: 10px; box-shadow: 0 3px 6px rgba(0,0,0,0.5); }
-
-    .context-menu { 
-      position: absolute; 
-      bottom: 14px; 
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(24, 24, 27, 0.95); 
-      backdrop-filter: blur(8px); 
-      padding: 6px 14px; 
-      border-radius: 10px; 
-      border: 1px solid rgba(255,255,255,0.12); 
-      display: none; 
-      gap: 8px; 
-      z-index: 10; 
-      align-items: center; 
-      white-space: nowrap;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
-    }
-    .context-menu span { font-size: 11px; font-weight: 600; color: #a1a1aa; }
   </style>
 </head>
 <body>
@@ -249,11 +230,12 @@
     
     <button class="info" onclick="addPiece('home')">➕ ทีมเรา</button>
     <button class="danger" style="background: #991b1b;" onclick="addPiece('away')">➕ ทีมเยือน</button>
+    <button class="danger" onclick="deleteSelectedPiece()">❌ ลบหมาก</button>
 
     <button id="btn-rec" class="warning" onclick="toggleRecord()">🎬 อัดฉากใหม่</button>
     <button id="btn-confirm" style="display:none;" class="active" onclick="confirmRecord()">✅ บันทึกฉาก</button>
     
-    <button onclick="playPrevScene()" title="ย้อนฉากก่อนหน้า">⏮️ ย้อน</button>
+    <button onclick="undoAction()" title="ย้อนการกระทำล่าสุด">⏮️ ย้อน</button>
     <button onclick="playNextScene()" title="เล่นฉากถัดไป">▶️ เล่น</button>
     <div class="scene-indicator" id="sceneIndicator">ฉาก: 0 / 0</div>
     
@@ -292,20 +274,23 @@
 
   <div id="pitch-container">
     <div class="fs-floating-controls">
-      <button id="fs-btn-drag" class="active" onclick="setMode('drag')" style="padding: 5px 8px;">✋</button>
-      <button id="fs-btn-draw" onclick="setMode('draw')" style="padding: 5px 8px;">✏️</button>
-      <button id="fs-btn-rec" class="warning" onclick="toggleRecord()" style="padding: 5px 8px;">🎬</button>
-      <button id="fs-btn-confirm" class="active" onclick="confirmRecord()" style="display:none; padding: 5px 8px;">✅</button>
-      <button onclick="playPrevScene()" style="padding: 5px 8px;" title="ย้อนฉาก">⏮️</button>
-      <button onclick="playNextScene()" style="padding: 5px 8px;" title="เล่นฉาก">▶️</button>
-      <button class="danger" onclick="deleteLastScene()" style="padding: 5px 8px;" title="ลบฉากล่าสุด">🗑️</button>
-      <select id="fsSpeedSelect" class="speed-select" onchange="syncSpeed(this.value)" style="padding: 4px;">
-        <option value="0.5">0.5x</option>
-        <option value="1.0" selected>1.0x</option>
-        <option value="2.0">2.0x</option>
-      </select>
-      <button class="danger" onclick="deleteSelectedPiece()" style="padding: 5px 8px;" title="ลบหมาก">❌</button>
-      <button class="warning" onclick="toggleFullscreenPitch()" style="padding: 5px 10px; font-weight: 700;" title="ออกเต็มจอ">✕ ออก</button>
+      <button id="fsToggleBtn" onclick="toggleFsMinimize()" style="background: transparent; border: none; color: white; font-size: 20px; padding: 0 4px; cursor: pointer; font-weight: bold;">&lt;</button>
+      <div id="fsContent" style="display: flex; gap: 6px; align-items: center;">
+        <button id="fs-btn-drag" class="active" onclick="setMode('drag')" style="padding: 5px 8px;">✋</button>
+        <button id="fs-btn-draw" onclick="setMode('draw')" style="padding: 5px 8px;">✏️</button>
+        <button id="fs-btn-rec" class="warning" onclick="toggleRecord()" style="padding: 5px 8px;">🎬</button>
+        <button id="fs-btn-confirm" class="active" onclick="confirmRecord()" style="display:none; padding: 5px 8px;">✅</button>
+        <button onclick="undoAction()" style="padding: 5px 8px;" title="ย้อน">⏮️</button>
+        <button onclick="playNextScene()" style="padding: 5px 8px;" title="เล่น">▶️</button>
+        <button class="danger" onclick="deleteLastScene()" style="padding: 5px 8px;" title="ลบฉาก">🗑️</button>
+        <select id="fsSpeedSelect" class="speed-select" onchange="syncSpeed(this.value)" style="padding: 4px;">
+          <option value="0.5">0.5x</option>
+          <option value="1.0" selected>1.0x</option>
+          <option value="2.0">2.0x</option>
+        </select>
+        <button class="danger" onclick="deleteSelectedPiece()" style="padding: 5px 8px;" title="ลบหมาก">❌</button>
+        <button class="warning" onclick="toggleFullscreenPitch()" style="padding: 5px 10px; font-weight: 700;" title="ออกเต็มจอ">✕ ออก</button>
+      </div>
     </div>
 
     <div class="halfway-line"></div>
@@ -332,27 +317,68 @@
     <div class="piece away" id="a7">7</div>
 
     <div class="piece ball" id="ball">⚽</div>
-
-    <div class="context-menu" id="contextMenu">
-      <span id="selectedName">เลือกหมาก:</span>
-      <button class="danger" onclick="deleteSelectedPiece()">❌ ลบหมาก</button>
-    </div>
   </div>
 
   <script>
     const container = document.getElementById('pitch-container');
     const canvas = document.getElementById('drawCanvas');
     const ctx = canvas.getContext('2d');
-    const contextMenu = document.getElementById('contextMenu');
     
     let mode = 'drag';
     let isRecording = false;
     let selectedPiece = null;
     let animFrameId = null;
+    let isFsMinimized = false;
     
     let sceneList = [];
     let currentScenePlaying = 0;
     const tempRecordedPaths = {};
+
+    let historyStack = [];
+
+    function pushHistory() {
+      const piecesData = [];
+      document.querySelectorAll('.piece').forEach(el => {
+        piecesData.push({
+          id: el.id,
+          className: el.className,
+          textContent: el.textContent,
+          left: el.style.left,
+          top: el.style.top
+        });
+      });
+      const canvasDataUrl = canvas.toDataURL();
+      historyStack.push({ pieces: piecesData, canvasUrl: canvasDataUrl });
+      if (historyStack.length > 30) historyStack.shift();
+    }
+
+    function undoAction() {
+      if (historyStack.length === 0) {
+        return alert('ไม่มีประวัติการกระทำก่อนหน้าให้ย้อนกลับแล้วครับ!');
+      }
+      const state = historyStack.pop();
+      
+      document.querySelectorAll('.piece').forEach(el => el.remove());
+      
+      state.pieces.forEach(p => {
+        const el = document.createElement('div');
+        el.id = p.id;
+        el.className = p.className;
+        el.textContent = p.textContent;
+        el.style.left = p.left;
+        el.style.top = p.top;
+        container.appendChild(el);
+        attachDrag(el);
+      });
+      
+      const img = new Image();
+      img.onload = function() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+      };
+      img.src = state.canvasUrl;
+      deselectPiece();
+    }
 
     function resizeCanvas() {
       canvas.width = container.clientWidth;
@@ -374,6 +400,14 @@
     function toggleFullscreenPitch() {
       container.classList.toggle('fullscreen-mode');
       setTimeout(resizeCanvas, 50);
+    }
+
+    function toggleFsMinimize() {
+      isFsMinimized = !isFsMinimized;
+      const content = document.getElementById('fsContent');
+      const toggleBtn = document.getElementById('fsToggleBtn');
+      content.style.display = isFsMinimized ? 'none' : 'flex';
+      toggleBtn.textContent = isFsMinimized ? '>' : '<';
     }
 
     function toggleTrueFullscreen() {
@@ -452,6 +486,7 @@
         attachDrag(el);
       });
 
+      historyStack = [];
       updateSceneIndicator();
       deselectPiece();
       alert(`📂 โหลดแผนจาก Slot ${slot} สำเร็จ!`);
@@ -468,6 +503,7 @@
     }
 
     function addPiece(team) {
+      pushHistory();
       stopAnimation();
       const prefix = team === 'home' ? 'h' : 'a';
       const existingNums = Array.from(document.querySelectorAll(`.piece.${team}`)).map(el => {
@@ -578,17 +614,6 @@
       runSceneAnimation(pathsToPlay);
     }
 
-    function playPrevScene() {
-      stopAnimation();
-      if (sceneList.length === 0) return alert('ยังไม่มีฉากที่บันทึกไว้เลยครับ!');
-      currentScenePlaying--;
-      if (currentScenePlaying < 0) currentScenePlaying = sceneList.length - 1;
-
-      const pathsToPlay = sceneList[currentScenePlaying];
-      updateSceneIndicator();
-      runSceneAnimation(pathsToPlay);
-    }
-
     function runSceneAnimation(pathsToPlay) {
       const speedMultiplier = parseFloat(document.getElementById('speedSelect').value);
       const speedPxPerSec = 300 * speedMultiplier;
@@ -655,18 +680,16 @@
       deselectPiece();
       selectedPiece = el;
       selectedPiece.classList.add('selected');
-      document.getElementById('selectedName').textContent = `หมาก: ${el.textContent}`;
-      contextMenu.style.display = 'flex';
     }
 
     function deselectPiece() {
       if (selectedPiece) selectedPiece.classList.remove('selected');
       selectedPiece = null;
-      contextMenu.style.display = 'none';
     }
 
     function deleteSelectedPiece() {
-      if (!selectedPiece) return;
+      if (!selectedPiece) return alert('กรุณาจิ้มเลือกหมากที่ต้องการลบก่อนครับ!');
+      pushHistory();
       selectedPiece.remove();
       deselectPiece();
     }
@@ -683,6 +706,7 @@
     };
 
     function resetPositions() {
+      pushHistory();
       stopAnimation();
       Object.keys(defaultPos).forEach(id => {
         const el = document.getElementById(id);
@@ -706,6 +730,7 @@
     function startDrag(e) {
       if (mode !== 'drag') return;
       if (e.cancelable) e.preventDefault();
+      pushHistory();
       activePiece = this;
       selectPiece(activePiece);
 
@@ -746,6 +771,7 @@
     function startDraw(e) {
       if (mode !== 'draw') return;
       if (e.cancelable) e.preventDefault();
+      pushHistory();
       isDrawing = true;
       const rect = canvas.getBoundingClientRect();
       startX = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
@@ -774,7 +800,10 @@
       startY = currentY;
     }
 
-    function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+    function clearCanvas() { 
+      pushHistory();
+      ctx.clearRect(0, 0, canvas.width, canvas.height); 
+    }
 
     resetPositions();
     updateSlotUI();
