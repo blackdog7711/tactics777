@@ -333,6 +333,7 @@
     
     let sceneList = [];
     let currentScenePlaying = 0;
+    let isWaitingForReset = false; // ตัวเช็คสถานะว่าต้องรีเซ็ตก่อนเริ่มรอบใหม่ไหม
     const tempRecordedPaths = {};
 
     let historyStack = [];
@@ -363,6 +364,7 @@
       
       sceneList = state.sceneList || [];
       if (currentScenePlaying > sceneList.length) currentScenePlaying = sceneList.length;
+      isWaitingForReset = false;
       updateSceneIndicator();
       
       document.querySelectorAll('.piece').forEach(el => el.remove());
@@ -483,6 +485,7 @@
       document.querySelectorAll('.piece').forEach(el => el.remove());
       sceneList = [];
       currentScenePlaying = 0;
+      isWaitingForReset = false;
       updateSceneIndicator();
 
       const parsed = JSON.parse(dataStr);
@@ -551,6 +554,7 @@
       stopAnimation();
       sceneList = [];
       currentScenePlaying = 0;
+      isWaitingForReset = false;
       updateSceneIndicator();
       document.querySelectorAll('.piece').forEach(el => el.classList.remove('has-anim'));
       deselectPiece();
@@ -561,6 +565,7 @@
       if (sceneList.length === 0) return alert('ไม่มีฉากให้ลบแล้วครับ!');
       sceneList.pop();
       if (currentScenePlaying > sceneList.length) currentScenePlaying = sceneList.length;
+      isWaitingForReset = false;
       updateSceneIndicator();
       alert('🗑️ ลบฉากล่าสุดออกเรียบร้อย!');
     }
@@ -607,13 +612,12 @@
       }
       sceneList.push({ ...tempRecordedPaths });
       
-      // บันทึกเสร็จแล้ว ไม่เปลี่ยนตำแหน่งหมากบนกระดาน (คงไว้ตำแหน่งล่าสุด)
-
       Object.keys(tempRecordedPaths).forEach(id => {
         document.getElementById(id)?.classList.add('has-anim');
       });
       toggleRecord();
       currentScenePlaying = sceneList.length;
+      isWaitingForReset = false;
       updateSceneIndicator();
       alert(`✅ บันทึก "ฉากที่ ${sceneList.length}" เรียบร้อย!`);
     }
@@ -622,9 +626,8 @@
       stopAnimation();
       if (sceneList.length === 0) return alert('ยังไม่มีฉากที่บันทึกไว้เลยครับ!');
       
-      // ถ้าเล่นครบทุกฉากแล้ว (วนครบรอบ) ให้รีเซ็ตตำแหน่งหมากกลับมาที่จุดเริ่มต้นของฉากแรกสุดก่อนเริ่มรอบใหม่
-      if (currentScenePlaying >= sceneList.length) {
-        currentScenePlaying = 0;
+      // ถ้าเล่นครบทุกฉากแล้ว และถึงรอบที่ต้องกดเพื่อรีเซ็ตหมากกลับตำแหน่งเดิม
+      if (currentScenePlaying >= sceneList.length && isWaitingForReset) {
         const pRect = container.getBoundingClientRect();
         const firstScene = sceneList[0];
         Object.keys(firstScene).forEach(id => {
@@ -636,10 +639,23 @@
             el.style.top = (startPt.y / pRect.height) * 100 + '%';
           }
         });
+        isWaitingForReset = false;
+        currentScenePlaying = 0;
+        updateSceneIndicator();
+        return; // รีเซ็ตเสร็จ จบรอบการกดปุ่มครั้งนี้ พอกกดเล่นอีกทีค่อยเริ่มฉากที่ 1
+      }
+
+      // ถ้าเล่นถึงฉากสุดท้ายแล้ว ให้เซ็ตสถานะว่ากดรอบถัดไปต้องรีเซ็ต
+      if (currentScenePlaying >= sceneList.length) {
+        currentScenePlaying = 0;
+        isWaitingForReset = true;
       }
 
       const pathsToPlay = sceneList[currentScenePlaying];
       currentScenePlaying++;
+      if (currentScenePlaying >= sceneList.length) {
+        isWaitingForReset = true; // เมื่อเล่นฉากสุดท้ายจบ เตรียมตัวรีเซ็ตในคลิกถัดไป
+      }
       updateSceneIndicator();
       runSceneAnimation(pathsToPlay);
     }
@@ -738,6 +754,7 @@
     function resetPositions() {
       pushHistory();
       stopAnimation();
+      isWaitingForReset = false;
       Object.keys(defaultPos).forEach(id => {
         const el = document.getElementById(id);
         if (el) {
