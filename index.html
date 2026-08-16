@@ -607,22 +607,13 @@
       }
       sceneList.push({ ...tempRecordedPaths });
       
-      const pRect = container.getBoundingClientRect();
-      Object.keys(tempRecordedPaths).forEach(id => {
-        const rawPath = tempRecordedPaths[id];
-        const el = document.getElementById(id);
-        if (el && rawPath && rawPath.length > 0) {
-          const startPt = rawPath[0];
-          el.style.left = (startPt.x / pRect.width) * 100 + '%';
-          el.style.top = (startPt.y / pRect.height) * 100 + '%';
-        }
-      });
+      // บันทึกเสร็จแล้ว ไม่เปลี่ยนตำแหน่งหมากบนกระดาน (คงไว้ตำแหน่งล่าสุด)
 
       Object.keys(tempRecordedPaths).forEach(id => {
         document.getElementById(id)?.classList.add('has-anim');
       });
       toggleRecord();
-      currentScenePlaying = sceneList.length - 1;
+      currentScenePlaying = sceneList.length;
       updateSceneIndicator();
       alert(`✅ บันทึก "ฉากที่ ${sceneList.length}" เรียบร้อย!`);
     }
@@ -631,13 +622,10 @@
       stopAnimation();
       if (sceneList.length === 0) return alert('ยังไม่มีฉากที่บันทึกไว้เลยครับ!');
       
+      // ถ้าเล่นครบทุกฉากแล้ว (วนครบรอบ) ให้รีเซ็ตตำแหน่งหมากกลับมาที่จุดเริ่มต้นของฉากแรกสุดก่อนเริ่มรอบใหม่
       if (currentScenePlaying >= sceneList.length) {
         currentScenePlaying = 0;
-      }
-
-      // เมื่อเริ่มเล่นรอบใหม่ (ฉากที่ 0) ให้หมากทุกตัวกลับมาตั้งที่จุดเริ่มต้นของฉากแรกก่อน
-      const pRect = container.getBoundingClientRect();
-      if (currentScenePlaying === 0 && sceneList.length > 0) {
+        const pRect = container.getBoundingClientRect();
         const firstScene = sceneList[0];
         Object.keys(firstScene).forEach(id => {
           const rawPath = firstScene[id];
@@ -651,16 +639,6 @@
       }
 
       const pathsToPlay = sceneList[currentScenePlaying];
-      Object.keys(pathsToPlay).forEach(id => {
-        const rawPath = pathsToPlay[id];
-        const el = document.getElementById(id);
-        if (el && rawPath && rawPath.length > 0) {
-          const startPt = rawPath[0];
-          el.style.left = (startPt.x / pRect.width) * 100 + '%';
-          el.style.top = (startPt.y / pRect.height) * 100 + '%';
-        }
-      });
-
       currentScenePlaying++;
       updateSceneIndicator();
       runSceneAnimation(pathsToPlay);
