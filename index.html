@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>7-a-Side Tactical Board (2-Slot Plan System)</title>
+  <style>
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+      user-select: none; 
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+    body { 
+      background: #18181b; 
+      font-family: system-ui, -apple-system, sans-serif; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: center; 
+      min-height: 100vh; 
+      color: white; 
+      padding: 8px;
+      touch-action: manipulation;
+    }
+    
+    #orientation-msg {
+        display: none;
+        position: fixed;
+        top: 0; 
+        left: 0; 
+        width: 100vw; 
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.95);
+        color: white;
+        z-index: 99999;
+        text-align: center;
+        padding-top: 40vh;
+        font-family: sans-serif;
+    }
+    @media screen and (orientation: portrait) and (max-width: 900px) {
+        #orientation-msg {
+            display: block;
+        }
+    }
+    
+    .controls { 
+      display: flex; 
+      gap: 6px; 
+      margin-bottom: 8px; 
+      flex-wrap: wrap; 
+      justify-content: center; 
+      max-width: 950px; 
+      width: 100%;
+    }
+    button, select { 
+      padding: 7px 10px; 
+      font-weight: 600; 
+      font-size: 12px; 
+      border: none; 
+      border-radius: 6px; 
+      cursor: pointer; 
+      background: #27272a; 
+      color: #f4f4f5; 
+      transition: background 0.2s; 
+      display: flex; 
+      align-items: center; 
+      gap: 4px; 
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:active, select:active { background: #3f3f46; }
+    button.active { background: #16a34a; color: white; }
+    button.danger { background: #dc2626; }
+    button.danger:hover { background: #b91c1c; }
+    button.warning { background: #d97706; }
+    button.info { background: #2563eb; }
+
+    .slot-container {
+      display: flex;
+      gap: 8px;
+      background: #09090b;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid #27272a;
+      align-items: center;
+    }
+    .slot-card {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: #18181b;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #3f3f46;
+    }
+    .slot-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #a1a1aa;
+      margin-right: 4px;
+    }
+    .slot-badge {
+      font-size: 10px;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+    .slot-badge.empty { background: #3f3f46; color: #a1a1aa; }
+    .slot-badge.active { background: #15803d; color: #4ade80; }
+    
+    .speed-select { background: #3f3f46; color: #facc15; font-weight: 700; outline: none; border: 1px solid #52525b; }
+    
+    #pitch-container { 
+      position: relative; 
+      width: 94vw; 
+      max-width: 850px; 
+      height: 60vw; 
+      max-height: 540px; 
+      background: #15803d; 
+      border: 3.5px solid #ffffff; 
+      border-radius: 12px; 
+      overflow: hidden; 
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6); 
+      touch-action: none;
+    }
+
+    #pitch-container.fullscreen-mode {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: none !important;
+      max-height: none !important;
+      border-radius: 0 !important;
+      border: none !important;
+      z-index: 9999;
+    }
+    
+    .fs-floating-controls {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 20;
+      display: none;
+      gap: 6px;
+      background: rgba(24, 24, 27, 0.85);
+      backdrop-filter: blur(4px);
+      padding: 6px;
+      border-radius: 8px;
+      border: 1px solid #3f3f46;
+    }
+    #pitch-container.fullscreen-mode .fs-floating-controls {
+      display: flex;
+    }
+    
+    .pitch-line { position: absolute; border: 2px solid rgba(255,255,255,0.75); pointer-events: none; }
+    .halfway-line { top: 0; bottom: 0; left: 50%; width: 2px; background: rgba(255,255,255,0.75); }
+    .center-circle { top: 50%; left: 50%; width: 90px; height: 90px; border-radius: 50%; transform: translate(-50%, -50%); }
+    .box-left { top: 22%; left: 0; width: 18%; height: 56%; }
+    .box-right { top: 22%; right: 0; width: 18%; height: 56%; }
+    
+    canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; touch-action: none; }
+    
+    .piece { 
+      position: absolute; 
+      width: 32px; 
+      height: 32px; 
+      border-radius: 50%; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      font-weight: 700; 
+      font-size: 12px; 
+      color: white; 
+      cursor: grab; 
+      z-index: 3; 
+      border: 2px solid white; 
+      box-shadow: 0 3px 6px rgba(0,0,0,0.4); 
+      touch-action: none;
+      will-change: left, top;
+    }
+    .piece:active { cursor: grabbing; transform: scale(1.12); }
+    .piece.selected { border-color: #facc15; box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.6); }
+    .piece.has-anim::after { content: '•'; color: #facc15; font-size: 22px; position: absolute; top: -13px; right: -2px; }
+    
+    .home { background: #2563eb; }
+    .away { background: #dc2626; }
+    .gk { background: #eab308; color: #000; }
+    .ball { background: #ffffff; color: #000; border: 2px solid #000; width: 22px; height: 22px; font-size: 10px; }
+
+    .context-menu { 
+      position: absolute; 
+      bottom: 12px; 
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(24, 24, 27, 0.95); 
+      backdrop-filter: blur(4px); 
+      padding: 6px 12px; 
+      border-radius: 8px; 
+      border: 1px solid #3f3f46; 
+      display: none; 
+      gap: 6px; 
+      z-index: 10; 
+      align-items: center; 
+      white-space: nowrap;
+    }
+    .context-menu span { font-size: 11px; font-weight: 600; color: #a1a1aa; }
+  </style>
+</head>
+<body>
+
+  <div id="orientation-msg">
+      <h2>⚽ กรุณาหมุนจอเป็นแนวนอนเพื่อใช้งานแท็กติกครับ!</h2>
+      <p style="color: #aaa; font-size: 14px; margin-top: 10px;">เพื่อให้เห็นสนามและวางหมากได้กว้างเต็มตาที่สุด</p>
+  </div>
+
+  <div class="controls">
+    <button id="btn-drag" class="active" onclick="setMode('drag')">✋ ลากวาง</button>
+    <button id="btn-draw" onclick="setMode('draw')">✏️ วาดเส้น</button>
+    
+    <button class="info" onclick="addPiece('home')">➕ ทีมเรา</button>
+    <button class="danger" style="background: #991b1b;" onclick="addPiece('away')">➕ ทีมเยือน</button>
+
+    <button id="btn-rec" onclick="toggleRecord()">🎬 เริ่มอัด</button>
+    <button id="btn-confirm" style="display:none;" class="warning" onclick="confirmRecord()">✅ ยืนยัน</button>
+    <button onclick="playAnimation()">▶️ เล่นแอนิเมชัน</button>
+    <button class="danger" onclick="stopAnimation()">⏹️ หยุดวิ่ง</button>
+    <button class="danger" onclick="clearAllAnimations()">🗑️ ลบแอนิเมชันทั้งหมด</button>
+
+    <button class="warning" onclick="toggleFullscreenPitch()">📺 เต็มจอเฉพาะแผน</button>
+    <button class="info" onclick="toggleTrueFullscreen()">🖥️ เต็มจอเบราว์เซอร์</button>
+
+    <select class="speed-select" id="speedSelect">
+      <option value="0.5">⚡ 0.5x</option>
+      <option value="1.0" selected>⚡ 1.0x</option>
+      <option value="2.0">⚡ 2.0x</option>
+    </select>
+
+    <button onclick="resetPositions()">🔄 รีเซ็ต (2-1-2-1)</button>
+    <button onclick="clearCanvas()">🗑️ ลบเส้นวาด</button>
+
+    <div class="slot-container">
+      <div class="slot-card">
+        <span class="slot-label">Slot 1 <span id="s1-badge" class="slot-badge empty">ว่าง</span></span>
+        <button class="info" onclick="saveSlot(1)">💾 บันทึก</button>
+        <button onclick="loadSlot(1)">📂 โหลด</button>
+        <button class="danger" onclick="deleteSlot(1)">🗑️ ลบ</button>
+      </div>
+
+      <div class="slot-card">
+        <span class="slot-label">Slot 2 <span id="s2-badge" class="slot-badge empty">ว่าง</span></span>
+        <button class="info" onclick="saveSlot(2)">💾 บันทึก</button>
+        <button onclick="loadSlot(2)">📂 โหลด</button>
+        <button class="danger" onclick="deleteSlot(2)">🗑️ ลบ</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="pitch-container">
+    <div class="fs-floating-controls">
+      <button class="info" onclick="playAnimation()">▶️ เล่น</button>
+      <button class="danger" onclick="stopAnimation()">⏹️ หยุด</button>
+      <button class="warning" onclick="toggleFullscreenPitch()">❌ ปิดเต็มจอ</button>
+    </div>
+
+    <div class="halfway-line"></div>
+    <div class="pitch-line center-circle"></div>
+    <div class="pitch-line box-left"></div>
+    <div class="pitch-line box-right"></div>
+    
+    <canvas id="drawCanvas"></canvas>
+
+    <div class="piece home gk" id="h1">GK</div>
+    <div class="piece home" id="h2">2</div>
+    <div class="piece home" id="h3">3</div>
+    <div class="piece home" id="h4">4</div>
+    <div class="piece home" id="h5">5</div>
+    <div class="piece home" id="h6">6</div>
+    <div class="piece home" id="h7">7</div>
+
+    <div class="piece away gk" id="a1">GK</div>
+    <div class="piece away" id="a2">2</div>
+    <div class="piece away" id="a3">3</div>
+    <div class="piece away" id="a4">4</div>
+    <div class="piece away" id="a5">5</div>
+    <div class="piece away" id="a6">6</div>
+    <div class="piece away" id="a7">7</div>
+
+    <div class="piece ball" id="ball">⚽</div>
+
+    <div class="context-menu" id="contextMenu">
+      <span id="selectedName">เลือกหมาก:</span>
+      <button class="danger" onclick="deleteSelectedPiece()">❌ ลบหมาก</button>
+      <button class="warning" id="btnClearAnim" onclick="clearSelectedAnim()">🎬 ลบแอนิเมชัน</button>
+    </div>
+  </div>
+
+  <script>
+    const container = document.getElementById('pitch-container');
+    const canvas = document.getElementById('drawCanvas');
+    const ctx = canvas.getContext('2d');
+    const contextMenu = document.getElementById('contextMenu');
+    
+    let mode = 'drag';
+    let isRecording = false;
+    let selectedPiece = null;
+    let animFrameId = null;
+    
+    const animPaths = {};
+    const tempRecordedPaths = {};
+
+    function resizeCanvas() {
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function toggleFullscreenPitch() {
+      container.classList.toggle('fullscreen-mode');
+      setTimeout(resizeCanvas, 50);
+    }
+
+    function toggleTrueFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          alert(`ไม่สามารถเปิดโหมดเต็มจอได้: ${err.message}`);
+        });
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    function setMode(newMode) {
+      mode = newMode;
+      document.getElementById('btn-drag').classList.toggle('active', mode === 'drag');
+      document.getElementById('btn-draw').classList.toggle('active', mode === 'draw');
+      canvas.style.pointerEvents = mode === 'draw' ? 'auto' : 'none';
+      deselectPiece();
+    }
+
+    function updateSlotUI() {
+      [1, 2].forEach(slot => {
+        const hasData = !!localStorage.getItem(`tactical_plan_slot_${slot}`);
+        const badge = document.getElementById(`s${slot}-badge`);
+        if (badge) {
+          badge.textContent = hasData ? 'มีแผนแล้ว' : 'ว่าง';
+          badge.className = `slot-badge ${hasData ? 'active' : 'empty'}`;
+        }
+      });
+    }
+
+    function saveSlot(slot) {
+      const key = `tactical_plan_slot_${slot}`;
+      if (localStorage.getItem(key)) {
+        return alert(`⚠️ Slot ${slot} มีแผนอยู่แล้ว!\nคุณต้องกด "🗑️ ลบ" แผนเดิมออกก่อนจึงจะบันทึกแผนใหม่ทับได้`);
+      }
+
+      const savedPieces = [];
+      document.querySelectorAll('.piece').forEach(el => {
+        let team = 'ball';
+        if (el.classList.contains('home')) team = 'home';
+        if (el.classList.contains('away')) team = 'away';
+        
+        savedPieces.push({
+          id: el.id,
+          team: team,
+          text: el.textContent,
+          left: el.style.left,
+          top: el.style.top,
+          isGk: el.classList.contains('gk')
+        });
+      });
+
+      const slotData = {
+        pieces: savedPieces,
+        paths: animPaths
+      };
+
+      localStorage.setItem(key, JSON.stringify(slotData));
+      updateSlotUI();
+      alert(`✅ บันทึกแผนและแอนิเมชันเข้า Slot ${slot} สำเร็จ!`);
+    }
+
+    function loadSlot(slot) {
+      const key = `tactical_plan_slot_${slot}`;
+      const dataStr = localStorage.getItem(key);
+      
+      if (!dataStr) {
+        return alert(`❌ ไม่พบข้อมูลใน Slot ${slot}!`);
+      }
+
+      stopAnimation();
+      document.querySelectorAll('.piece').forEach(el => el.remove());
+      Object.keys(animPaths).forEach(k => delete animPaths[k]);
+
+      const parsed = JSON.parse(dataStr);
+      const savedPieces = Array.isArray(parsed) ? parsed : parsed.pieces;
+      const savedPaths = !Array.isArray(parsed) && parsed.paths ? parsed.paths : {};
+
+      Object.keys(savedPaths).forEach(id => {
+        animPaths[id] = savedPaths[id];
+      });
+
+      savedPieces.forEach(p => {
+        const el = document.createElement('div');
+        el.id = p.id;
+        el.className = `piece ${p.team} ${p.isGk ? 'gk' : ''}`;
+        if (animPaths[p.id]) el.classList.add('has-anim');
+        el.textContent = p.text;
+        el.style.left = p.left;
+        el.style.top = p.top;
+        container.appendChild(el);
+        attachDrag(el);
+      });
+
+      deselectPiece();
+      alert(`📂 โหลดแผนจาก Slot ${slot} สำเร็จ!`);
+    }
+
+    function deleteSlot(slot) {
+      const key = `tactical_plan_slot_${slot}`;
+      if (!localStorage.getItem(key)) {
+        return alert(`Slot ${slot} ยังว่างอยู่ครับ!`);
+      }
+
+      if (confirm(`คุณต้องการลบแผนใน Slot ${slot} ใช่หรือไม่?`)) {
+        localStorage.removeItem(key);
+        updateSlotUI();
+        alert(`🗑️ ลบแผนใน Slot ${slot} เรียบร้อยแล้ว!`);
+      }
+    }
+
+    function addPiece(team) {
+      stopAnimation();
+      const prefix = team === 'home' ? 'h' : 'a';
+      const existingElements = document.querySelectorAll(`.piece.${team}`);
+      
+      const existingNums = Array.from(existingElements).map(el => {
+        const num = parseInt(el.id.replace(prefix, ''), 10);
+        return isNaN(num) ? null : num;
+      }).filter(n => n !== null);
+
+      let targetNum = 1;
+      while (existingNums.includes(targetNum)) {
+        targetNum++;
+      }
+
+      const newId = `${prefix}${targetNum}`;
+      const newPiece = document.createElement('div');
+      newPiece.id = newId;
+      newPiece.className = `piece ${team} ${targetNum === 1 ? 'gk' : ''}`;
+      newPiece.textContent = targetNum === 1 ? 'GK' : targetNum;
+
+      newPiece.style.left = '50%';
+      newPiece.style.top = '50%';
+
+      container.appendChild(newPiece);
+      attachDrag(newPiece);
+      selectPiece(newPiece);
+    }
+
+    function stopAnimation() {
+      if (animFrameId) {
+        cancelAnimationFrame(animFrameId);
+        animFrameId = null;
+      }
+    }
+
+    function clearAllAnimations() {
+      stopAnimation();
+      Object.keys(animPaths).forEach(key => delete animPaths[key]);
+      document.querySelectorAll('.piece').forEach(el => el.classList.remove('has-anim'));
+      deselectPiece();
+      alert('ลบแอนิเมชันทั้งหมดเรียบร้อยแล้ว!');
+    }
+
+    function toggleRecord() {
+      isRecording = !isRecording;
+      const btnRec = document.getElementById('btn-rec');
+      const btnConfirm = document.getElementById('btn-confirm');
+
+      if (isRecording) {
+        btnRec.textContent = '⏹️ ยกเลิกอัด';
+        btnRec.classList.add('danger');
+        btnConfirm.style.display = 'inline-flex';
+        Object.keys(tempRecordedPaths).forEach(k => delete tempRecordedPaths[k]);
+      } else {
+        btnRec.textContent = '🎬 เริ่มอัด';
+        btnRec.classList.remove('danger');
+        btnConfirm.style.display = 'none';
+      }
+    }
+
+    function recordStep(id, x, y) {
+      if (!isRecording) return;
+      if (!tempRecordedPaths[id]) tempRecordedPaths[id] = [];
+      const pts = tempRecordedPaths[id];
+      if (pts.length > 0) {
+        const last = pts[pts.length - 1];
+        if (Math.hypot(x - last.x, y - last.y) < 4) return;
+      }
+      tempRecordedPaths[id].push({ x, y });
+    }
+
+    function confirmRecord() {
+      Object.keys(tempRecordedPaths).forEach(id => {
+        if (tempRecordedPaths[id].length > 0) {
+          animPaths[id] = [...tempRecordedPaths[id]];
+          document.getElementById(id)?.classList.add('has-anim');
+        }
+      });
+      toggleRecord();
+      alert('บันทึกเส้นทางแอนิเมชันเรียบร้อย!');
+    }
+
+    function playAnimation() {
+      stopAnimation();
+      const keys = Object.keys(animPaths);
+      if (keys.length === 0) return alert('ยังไม่มีข้อมูลเส้นทางแอนิเมชัน!');
+
+      const speedMultiplier = parseFloat(document.getElementById('speedSelect').value);
+      const speedPxPerSec = 300 * speedMultiplier;
+
+      const preparedPaths = {};
+      let maxDuration = 0;
+
+      keys.forEach(id => {
+        const rawPath = animPaths[id];
+        if (!rawPath || rawPath.length < 2) return;
+
+        let totalDist = 0;
+        const distances = [0];
+
+        for (let i = 1; i < rawPath.length; i++) {
+          const d = Math.hypot(rawPath[i].x - rawPath[i-1].x, rawPath[i].y - rawPath[i-1].y);
+          totalDist += d;
+          distances.push(totalDist);
+        }
+
+        const duration = (totalDist / speedPxPerSec) * 1000;
+        if (duration > maxDuration) maxDuration = duration;
+
+        preparedPaths[id] = { rawPath, distances, totalDist, duration };
+      });
+
+      if (Object.keys(preparedPaths).length === 0) return;
+
+      let startTime = null;
+
+      function stepFrame(timestamp) {
+        if (!startTime) startTime = timestamp;
+        const elapsed = timestamp - startTime;
+
+        Object.keys(preparedPaths).forEach(id => {
+          const { rawPath, distances, totalDist, duration } = preparedPaths[id];
+          const el = document.getElementById(id);
+          if (!el) return;
+
+          const progress = Math.min(elapsed / duration, 1);
+          const currentDist = progress * totalDist;
+
+          let idx = 0;
+          while (idx < distances.length - 1 && distances[idx + 1] < currentDist) {
+            idx++;
+          }
+
+          const pRect = container.getBoundingClientRect();
+
+          if (idx >= distances.length - 1) {
+            const last = rawPath[rawPath.length - 1];
+            el.style.left = (last.x / pRect.width) * 100 + '%';
+            el.style.top = (last.y / pRect.height) * 100 + '%';
+          } else {
+            const segStartDist = distances[idx];
+            const segEndDist = distances[idx + 1];
+            const segLength = segEndDist - segStartDist;
+            const segFactor = segLength > 0 ? (currentDist - segStartDist) / segLength : 0;
+
+            const p1 = rawPath[idx];
+            const p2 = rawPath[idx + 1];
+
+            const curX = p1.x + (p2.x - p1.x) * segFactor;
+            const curY = p1.y + (p2.y - p1.y) * segFactor;
+
+            el.style.left = (curX / pRect.width) * 100 + '%';
+            el.style.top = (curY / pRect.height) * 100 + '%';
+          }
+        });
+
+        if (elapsed < maxDuration) {
+          animFrameId = requestAnimationFrame(stepFrame);
+        } else {
+          stopAnimation();
+        }
+      }
+
+      animFrameId = requestAnimationFrame(stepFrame);
+    }
+
+    function selectPiece(el) {
+      deselectPiece();
+      selectedPiece = el;
+      selectedPiece.classList.add('selected');
+      
+      document.getElementById('selectedName').textContent = `หมาก: ${el.textContent}`;
+      document.getElementById('btnClearAnim').style.display = animPaths[el.id] ? 'inline-flex' : 'none';
+      contextMenu.style.display = 'flex';
+    }
+
+    function deselectPiece() {
+      if (selectedPiece) selectedPiece.classList.remove('selected');
+      selectedPiece = null;
+      contextMenu.style.display = 'none';
+    }
+
+    function deleteSelectedPiece() {
+      if (!selectedPiece) return;
+      delete animPaths[selectedPiece.id];
+      selectedPiece.remove();
+      deselectPiece();
+    }
+
+    function clearSelectedAnim() {
+      if (!selectedPiece) return;
+      delete animPaths[selectedPiece.id];
+      selectedPiece.classList.remove('has-anim');
+      deselectPiece();
+    }
+
+    const defaultPos = {
+      h1: { left: '5%', top: '45%' }, h2: { left: '20%', top: '25%' },
+      h3: { left: '20%', top: '65%' }, h4: { left: '35%', top: '45%' },
+      h5: { left: '50%', top: '25%' }, h6: { left: '50%', top: '65%' },
+      h7: { left: '65%', top: '45%' }, a1: { left: '90%', top: '45%' },
+      a2: { left: '75%', top: '20%' }, a3: { left: '75%', top: '45%' },
+      a4: { left: '75%', top: '70%' }, a5: { left: '55%', top: '35%' },
+      a6: { left: '55%', top: '55%' }, a7: { left: '40%', top: '45%' },
+      ball: { left: '60%', top: '45%' }
+    };
+
+    function resetPositions() {
+      stopAnimation();
+      Object.keys(defaultPos).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.style.left = defaultPos[id].left;
+          el.style.top = defaultPos[id].top;
+        }
+      });
+      clearCanvas();
+      deselectPiece();
+    }
+
+    let activePiece = null, offsetX = 0, offsetY = 0;
+    document.querySelectorAll('.piece').forEach(attachDrag);
+
+    function attachDrag(piece) {
+      piece.addEventListener('mousedown', startDrag);
+      piece.addEventListener('touchstart', startDrag, { passive: false });
+    }
+
+    function startDrag(e) {
+      if (mode !== 'drag') return;
+      if (e.cancelable) e.preventDefault();
+      
+      activePiece = this;
+      selectPiece(activePiece);
+
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const rect = activePiece.getBoundingClientRect();
+      offsetX = clientX - rect.left;
+      offsetY = clientY - rect.top;
+
+      document.addEventListener('mousemove', onDrag);
+      document.addEventListener('touchmove', onDrag, { passive: false });
+      document.addEventListener('mouseup', stopDrag);
+      document.addEventListener('touchend', stopDrag);
+    }
+
+    function onDrag(e) {
+      if (!activePiece) return;
+      if (e.cancelable) e.preventDefault();
+
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const pRect = container.getBoundingClientRect();
+
+      let x = clientX - pRect.left - offsetX;
+      let y = clientY - pRect.top - offsetY;
+
+      x = Math.max(0, Math.min(x, pRect.width - activePiece.clientWidth));
+      y = Math.max(0, Math.min(y, pRect.height - activePiece.clientHeight));
+
+      // แปลงพิกัดเป็นเปอร์เซ็นต์ (%) เพื่อให้เวลาหมุนจอหรือเปลี่ยนขนาดหน้าจอ ตำแหน่งไม่เพี้ยน
+      const xPercent = (x / pRect.width) * 100;
+      const yPercent = (y / pRect.height) * 100;
+
+      activePiece.style.left = xPercent + '%';
+      activePiece.style.top = yPercent + '%';
+
+      recordStep(activePiece.id, x, y);
+    }
+
+    function stopDrag() {
+      activePiece = null;
+      document.removeEventListener('mousemove', onDrag);
+      document.removeEventListener('touchmove', onDrag);
+    }
+
+    let isDrawing = false, startX, startY;
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+
+    function startDraw(e) {
+      if (mode !== 'draw') return;
+      if (e.cancelable) e.preventDefault();
+
+      isDrawing = true;
+      const rect = canvas.getBoundingClientRect();
+      startX = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+      startY = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+
+      canvas.addEventListener('mousemove', drawing);
+      canvas.addEventListener('touchmove', drawing, { passive: false });
+      canvas.addEventListener('mouseup', stopDraw);
+      canvas.addEventListener('touchend', stopDraw);
+    }
+
+    function drawing(e) {
+      if (!isDrawing) return;
+      if (e.cancelable) e.preventDefault();
+
+      const rect = canvas.getBoundingClientRect();
+      const currentX = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+      const currentY = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#facc15';
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(currentX, currentY);
+      ctx.stroke();
+
+      startX = currentX;
+      startY = currentY;
+    }
+
+    function stopDraw() { isDrawing = false; }
+    function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+    resetPositions();
+    updateSlotUI();
+  </script>
+</body>
+</html>
