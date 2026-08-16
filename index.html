@@ -334,10 +334,20 @@
     let sceneList = [];
     let currentScenePlaying = 0;
     let isWaitingForReset = false;
-    let initialPlayPositions = {}; // ตัวเก็บตำแหน่งเริ่มต้นของหมากทุกตัวก่อนเริ่มเล่น
     const tempRecordedPaths = {};
 
     let historyStack = [];
+
+    const defaultPos = {
+      h1: { left: '5%', top: '45%' }, h2: { left: '20%', top: '25%' },
+      h3: { left: '20%', top: '65%' }, h4: { left: '35%', top: '45%' },
+      h5: { left: '50%', top: '25%' }, h6: { left: '50%', top: '65%' },
+      h7: { left: '65%', top: '45%' }, a1: { left: '90%', top: '45%' },
+      a2: { left: '75%', top: '20%' }, a3: { left: '75%', top: '45%' },
+      a4: { left: '75%', top: '70%' }, a5: { left: '55%', top: '35%' },
+      a6: { left: '55%', top: '55%' }, a7: { left: '40%', top: '45%' },
+      ball: { left: '60%', top: '45%' }
+    };
 
     function pushHistory() {
       const piecesData = [];
@@ -502,6 +512,7 @@
         el.style.top = p.top;
         container.appendChild(el);
         attachDrag(el);
+        defaultPos[p.id] = { left: p.left, top: p.top };
       });
 
       historyStack = [];
@@ -541,6 +552,7 @@
 
       container.appendChild(newPiece);
       attachDrag(newPiece);
+      defaultPos[newPiece.id] = { left: '50%', top: '50%' };
       selectPiece(newPiece);
     }
 
@@ -568,7 +580,6 @@
       if (currentScenePlaying > sceneList.length) currentScenePlaying = sceneList.length;
       isWaitingForReset = false;
       
-      // อัปเดตลบจุดเหลือง (UI) ของหมากที่ไม่มีฉากเหลือแล้วออกทันที
       document.querySelectorAll('.piece').forEach(el => el.classList.remove('has-anim'));
       sceneList.forEach(scene => {
         Object.keys(scene).forEach(id => {
@@ -636,15 +647,13 @@
       stopAnimation();
       if (sceneList.length === 0) return alert('ยังไม่มีฉากที่บันทึกไว้เลยครับ!');
       
-      // ถ้าเล่นครบทุกฉากแล้ว และถึงรอบที่ต้องกดเพื่อรีเซ็ตหมากทุกตัวกลับตำแหน่งเดิม
       if (currentScenePlaying >= sceneList.length && isWaitingForReset) {
-        const pRect = container.getBoundingClientRect();
-        Object.keys(initialPlayPositions).forEach(id => {
-          const pos = initialPlayPositions[id];
+        Object.keys(defaultPos).forEach(id => {
           const el = document.getElementById(id);
+          const pos = defaultPos[id];
           if (el && pos) {
-            el.style.left = (pos.x / pRect.width) * 100 + '%';
-            el.style.top = (pos.y / pRect.height) * 100 + '%';
+            el.style.left = pos.left;
+            el.style.top = pos.top;
           }
         });
         isWaitingForReset = false;
@@ -653,20 +662,6 @@
         return; 
       }
 
-      // ถ้ากำลังจะเริ่มเล่นจากฉากที่ 1 (รอบแรกสุดของลูป) ให้บันทึกตำแหน่งเริ่มต้นของหมากทุกตัวไว้ก่อน
-      if (currentScenePlaying === 0) {
-        initialPlayPositions = {};
-        const pRect = container.getBoundingClientRect();
-        document.querySelectorAll('.piece').forEach(el => {
-          const rect = el.getBoundingClientRect();
-          initialPlayPositions[el.id] = {
-            x: rect.left - pRect.left,
-            y: rect.top - pRect.top
-          };
-        });
-      }
-
-      // ถ้าเล่นถึงฉากสุดท้ายแล้ว ให้เซ็ตสถานะว่ากดรอบถัดไปต้องรีเซ็ต
       if (currentScenePlaying >= sceneList.length) {
         currentScenePlaying = 0;
         isWaitingForReset = true;
@@ -760,17 +755,6 @@
       selectedPiece.remove();
       deselectPiece();
     }
-
-    const defaultPos = {
-      h1: { left: '5%', top: '45%' }, h2: { left: '20%', top: '25%' },
-      h3: { left: '20%', top: '65%' }, h4: { left: '35%', top: '45%' },
-      h5: { left: '50%', top: '25%' }, h6: { left: '50%', top: '65%' },
-      h7: { left: '65%', top: '45%' }, a1: { left: '90%', top: '45%' },
-      a2: { left: '75%', top: '20%' }, a3: { left: '75%', top: '45%' },
-      a4: { left: '75%', top: '70%' }, a5: { left: '55%', top: '35%' },
-      a6: { left: '55%', top: '55%' }, a7: { left: '40%', top: '45%' },
-      ball: { left: '60%', top: '45%' }
-    };
 
     function resetPositions() {
       pushHistory();
