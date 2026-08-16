@@ -356,6 +356,7 @@
       if (historyStack.length === 0) {
         return alert('ไม่มีประวัติการกระทำก่อนหน้าให้ย้อนกลับแล้วครับ!');
       }
+      stopAnimation();
       const state = historyStack.pop();
       
       document.querySelectorAll('.piece').forEach(el => el.remove());
@@ -609,6 +610,19 @@
       }
 
       const pathsToPlay = sceneList[currentScenePlaying];
+      
+      // วาร์ปหมากไปจุดเริ่มต้นของฉากนั้นๆ ทันทีก่อนเล่นแอนิเมชัน
+      const pRect = container.getBoundingClientRect();
+      Object.keys(pathsToPlay).forEach(id => {
+        const rawPath = pathsToPlay[id];
+        const el = document.getElementById(id);
+        if (el && rawPath && rawPath.length > 0) {
+          const startPt = rawPath[0];
+          el.style.left = (startPt.x / pRect.width) * 100 + '%';
+          el.style.top = (startPt.y / pRect.height) * 100 + '%';
+        }
+      });
+
       currentScenePlaying++;
       updateSceneIndicator();
       runSceneAnimation(pathsToPlay);
