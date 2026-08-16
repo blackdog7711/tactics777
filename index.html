@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>7-a-Side Tactical Board</title>
+  <title>7-a-Side Tactical Board - Scene Mode</title>
   <style>
     * { 
       box-sizing: border-box; 
@@ -104,6 +104,17 @@
     }
     .slot-badge.empty { background: #3f3f46; color: #a1a1aa; }
     .slot-badge.active { background: #15803d; color: #4ade80; }
+    
+    .scene-indicator {
+      background: #3f3f46;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #facc15;
+      display: flex;
+      align-items: center;
+    }
     
     .speed-select { background: #3f3f46; color: #facc15; font-weight: 700; outline: none; border: 1px solid #52525b; }
     
@@ -228,11 +239,14 @@
     <button class="info" onclick="addPiece('home')">➕ ทีมเรา</button>
     <button class="danger" style="background: #991b1b;" onclick="addPiece('away')">➕ ทีมเยือน</button>
 
-    <button id="btn-rec" onclick="toggleRecord()">🎬 เริ่มอัด</button>
-    <button id="btn-confirm" style="display:none;" class="warning" onclick="confirmRecord()">✅ ยืนยัน</button>
-    <button onclick="playAnimation()">▶️ เล่นแอนิเมชัน</button>
-    <button class="danger" onclick="stopAnimation()">⏹️ หยุดวิ่ง</button>
-    <button class="danger" onclick="clearAllAnimations()">🗑️ ลบแอนิเมชันทั้งหมด</button>
+    <button id="btn-rec" class="warning" onclick="toggleRecord()">🎬 อัดฉากใหม่</button>
+    <button id="btn-confirm" style="display:none;" class="active" onclick="confirmRecord()">✅ บันทึกฉากนี้</button>
+    
+    <button onclick="playNextScene()">▶️ เล่นฉากถัดไป</button>
+    <div class="scene-indicator" id="sceneIndicator">ฉาก: 0 / 0</div>
+    
+    <button class="danger" onclick="stopAnimation()">⏹️ หยุด</button>
+    <button class="danger" onclick="clearAllAnimations()">🗑️ ลบทุกฉาก</button>
 
     <button class="warning" onclick="toggleFullscreenPitch()">📺 เต็มจอเฉพาะแผน</button>
     <button class="info" onclick="toggleTrueFullscreen()">🖥️ เต็มจอเบราว์เซอร์</button>
@@ -269,9 +283,9 @@
       <div class="fs-content" id="fsContent">
         <button id="fs-btn-drag" class="active" onclick="setMode('drag')">✋</button>
         <button id="fs-btn-draw" onclick="setMode('draw')">✏️</button>
-        <button id="fs-btn-rec" onclick="toggleRecord()">🎬</button>
-        <button id="fs-btn-confirm" class="warning" onclick="confirmRecord()" style="display:none;">✅</button>
-        <button onclick="playAnimation()">▶️</button>
+        <button id="fs-btn-rec" class="warning" onclick="toggleRecord()">🎬</button>
+        <button id="fs-btn-confirm" class="active" onclick="confirmRecord()" style="display:none;">✅</button>
+        <button onclick="playNextScene()">▶️</button>
         <button class="danger" onclick="stopAnimation()">⏹️</button>
         <button class="danger" onclick="deleteSelectedPiece()" title="ลบหมาก">🗑️</button>
         <select id="fsSpeedSelect" class="speed-select" onchange="syncSpeed(this.value)">
@@ -310,7 +324,6 @@
     <div class="context-menu" id="contextMenu">
       <span id="selectedName">เลือกหมาก:</span>
       <button class="danger" onclick="deleteSelectedPiece()">❌ ลบหมาก</button>
-      <button class="warning" id="btnClearAnim" onclick="clearSelectedAnim()">🎬 ลบแอนิเมชัน</button>
     </div>
   </div>
 
@@ -326,7 +339,8 @@
     let animFrameId = null;
     let isFsMinimized = false;
     
-    const animPaths = {};
+    let sceneList = []; // เก็บรายการฉากทั้งหมด [{ id: path }, { id: path }]
+    let currentScenePlaying = 0;
     const tempRecordedPaths = {};
 
     function resizeCanvas() {
@@ -335,6 +349,11 @@
     }
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
+
+    function updateSceneIndicator() {
+      const el = document.getElementById('sceneIndicator');
+      if (el) el.textContent = `ฉาก: ${currentScenePlaying} / ${sceneList.length}`;
+    }
 
     function syncSpeed(val) {
       document.getElementById('speedSelect').value = val;
@@ -376,7 +395,7 @@
 
     function updateSlotUI() {
       [1, 2].forEach(slot => {
-        const hasData = !!localStorage.getItem(`tactical_plan_slot_${slot}`);
+        const hasData = !!localStorage.getItem(`tactical_scene_slot_${slot}`);
         const badge = document.getElementById(`s${slot}-badge`);
         if (badge) {
           badge.textContent = hasData ? 'มีแผนแล้ว' : 'ว่าง';
@@ -386,7 +405,7 @@
     }
 
     function saveSlot(slot) {
-      const key = `tactical_plan_slot_${slot}`;
+      const key = `tactical_scene_slot_${slot}`;
       if (localStorage.getItem(key)) {
         return alert(`⚠️ Slot ${slot} มีแผนอยู่แล้ว! กรุณากด "🗑️ ลบ" ออกก่อน`);
       }
@@ -404,30 +423,29 @@
         });
       });
 
-      localStorage.setItem(key, JSON.stringify({ pieces: savedPieces, paths: animPaths }));
+      localStorage.setItem(key, JSON.stringify({ pieces: savedPieces, scenes: sceneList }));
       updateSlotUI();
       alert(`✅ บันทึกเข้า Slot ${slot} สำเร็จ!`);
     }
 
     function loadSlot(slot) {
-      const dataStr = localStorage.getItem(`tactical_plan_slot_${slot}`);
+      const dataStr = localStorage.getItem(`tactical_scene_slot_${slot}`);
       if (!dataStr) return alert(`❌ ไม่พบข้อมูลใน Slot ${slot}!`);
 
       stopAnimation();
       document.querySelectorAll('.piece').forEach(el => el.remove());
-      Object.keys(animPaths).forEach(k => delete animPaths[k]);
+      sceneList = [];
+      currentScenePlaying = 0;
+      updateSceneIndicator();
 
       const parsed = JSON.parse(dataStr);
       const savedPieces = Array.isArray(parsed) ? parsed : parsed.pieces;
-      const savedPaths = !Array.isArray(parsed) && parsed.paths ? parsed.paths : {};
-
-      Object.assign(animPaths, savedPaths);
+      sceneList = !Array.isArray(parsed) && parsed.scenes ? parsed.scenes : [];
 
       savedPieces.forEach(p => {
         const el = document.createElement('div');
         el.id = p.id;
         el.className = `piece ${p.team} ${p.isGk ? 'gk' : ''}`;
-        if (animPaths[p.id]) el.classList.add('has-anim');
         el.textContent = p.text;
         el.style.left = p.left;
         el.style.top = p.top;
@@ -435,12 +453,13 @@
         attachDrag(el);
       });
 
+      updateSceneIndicator();
       deselectPiece();
       alert(`📂 โหลดแผนจาก Slot ${slot} สำเร็จ!`);
     }
 
     function deleteSlot(slot) {
-      const key = `tactical_plan_slot_${slot}`;
+      const key = `tactical_scene_slot_${slot}`;
       if (!localStorage.getItem(key)) return alert(`Slot ${slot} ว่างอยู่ครับ!`);
       if (confirm(`ต้องการลบแผนใน Slot ${slot} ใช่หรือไม่?`)) {
         localStorage.removeItem(key);
@@ -481,10 +500,12 @@
 
     function clearAllAnimations() {
       stopAnimation();
-      Object.keys(animPaths).forEach(key => delete animPaths[key]);
+      sceneList = [];
+      currentScenePlaying = 0;
+      updateSceneIndicator();
       document.querySelectorAll('.piece').forEach(el => el.classList.remove('has-anim'));
       deselectPiece();
-      alert('ลบแอนิเมชันทั้งหมดแล้ว!');
+      alert('ลบทุกฉากเรียบร้อย!');
     }
 
     function toggleRecord() {
@@ -503,7 +524,7 @@
         fsBtnConfirm.style.display = 'inline-flex';
         Object.keys(tempRecordedPaths).forEach(k => delete tempRecordedPaths[k]);
       } else {
-        btnRec.textContent = '🎬 เริ่มอัด';
+        btnRec.textContent = '🎬 อัดฉากใหม่';
         btnRec.classList.remove('danger');
         btnConfirm.style.display = 'none';
         fsBtnRec.textContent = '🎬';
@@ -524,28 +545,37 @@
     }
 
     function confirmRecord() {
+      if (Object.keys(tempRecordedPaths).length === 0) {
+        return alert('⚠️ คุณยังไม่ได้ขยับตัวผู้เล่นในฉากนี้เลยครับ!');
+      }
+      sceneList.push({ ...tempRecordedPaths });
       Object.keys(tempRecordedPaths).forEach(id => {
-        if (tempRecordedPaths[id].length > 0) {
-          animPaths[id] = [...tempRecordedPaths[id]];
-          document.getElementById(id)?.classList.add('has-anim');
-        }
+        document.getElementById(id)?.classList.add('has-anim');
       });
       toggleRecord();
-      alert('บันทึกเส้นทางแอนิเมชันเรียบร้อย!');
+      updateSceneIndicator();
+      alert(`✅ บันทึก "ฉากที่ ${sceneList.length}" สำเร็จ! (กด "เล่นฉากถัดไป" เพื่อดู)`);
     }
 
-    function playAnimation() {
+    function playNextScene() {
       stopAnimation();
-      const keys = Object.keys(animPaths);
-      if (keys.length === 0) return alert('ยังไม่มีข้อมูลเส้นทางแอนิเมชัน!');
+      if (sceneList.length === 0) return alert('ยังไม่มีฉากที่บันทึกไว้เลยครับ! กด "อัดฉากใหม่" ก่อน');
+
+      if (currentScenePlaying >= sceneList.length) {
+        currentScenePlaying = 0; // วนกลับมาฉากแรก หรือ แจ้งเตือนจบ
+      }
+
+      const pathsToPlay = sceneList[currentScenePlaying];
+      currentScenePlaying++;
+      updateSceneIndicator();
 
       const speedMultiplier = parseFloat(document.getElementById('speedSelect').value);
       const speedPxPerSec = 300 * speedMultiplier;
       const preparedPaths = {};
       let maxDuration = 0;
 
-      keys.forEach(id => {
-        const rawPath = animPaths[id];
+      Object.keys(pathsToPlay).forEach(id => {
+        const rawPath = pathsToPlay[id];
         if (!rawPath || rawPath.length < 2) return;
 
         let totalDist = 0;
@@ -605,7 +635,6 @@
       selectedPiece = el;
       selectedPiece.classList.add('selected');
       document.getElementById('selectedName').textContent = `หมาก: ${el.textContent}`;
-      document.getElementById('btnClearAnim').style.display = animPaths[el.id] ? 'inline-flex' : 'none';
       contextMenu.style.display = 'flex';
     }
 
@@ -617,15 +646,7 @@
 
     function deleteSelectedPiece() {
       if (!selectedPiece) return;
-      delete animPaths[selectedPiece.id];
       selectedPiece.remove();
-      deselectPiece();
-    }
-
-    function clearSelectedAnim() {
-      if (!selectedPiece) return;
-      delete animPaths[selectedPiece.id];
-      selectedPiece.classList.remove('has-anim');
       deselectPiece();
     }
 
@@ -736,6 +757,7 @@
 
     resetPositions();
     updateSlotUI();
+    updateSceneIndicator();
   </script>
 </body>
 </html>
