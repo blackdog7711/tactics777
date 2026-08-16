@@ -146,7 +146,7 @@
       z-index: 20;
       display: none;
       gap: 6px;
-      background: rgba(24, 24, 27, 0.85);
+      background: rgba(24, 24, 27, 0.9);
       backdrop-filter: blur(4px);
       padding: 6px;
       border-radius: 8px;
@@ -267,11 +267,16 @@
 
   <div id="pitch-container">
     <div class="fs-floating-controls">
-      <button class="warning" id="fsToggleBtn" onclick="toggleFsMinimize()" style="padding: 5px 8px;" title="ย่อ/ขยายเมนู">🔽</button>
+      <button class="warning" id="fsToggleBtn" onclick="toggleFsMinimize()" style="padding: 5px 9px; color: #ffffff; font-weight: bold;" title="ย่อ/ขยายเมนู">&lt;</button>
       <div class="fs-content" id="fsContent">
-        <button class="info" onclick="playAnimation()">▶️ เล่น</button>
-        <button class="danger" onclick="stopAnimation()">⏹️ หยุด</button>
-        <button class="warning" onclick="toggleFullscreenPitch()">❌ ปิดเต็มจอ</button>
+        <button id="fs-btn-drag" class="active" onclick="setMode('drag')" style="padding: 5px 8px;">✋ ลาก</button>
+        <button id="fs-btn-draw" onclick="setMode('draw')" style="padding: 5px 8px;">✏️ เขียน</button>
+        <button id="fs-btn-rec" class="info" onclick="toggleRecord()" style="padding: 5px 8px;">🎬 อัด</button>
+        <button id="fs-btn-confirm" class="warning" onclick="confirmRecord()" style="display:none; padding: 5px 8px;">✅ ยืนยัน</button>
+        <button class="info" onclick="playAnimation()" style="padding: 5px 8px;">▶️ เล่น</button>
+        <button class="danger" onclick="stopAnimation()" style="padding: 5px 8px;">⏹️ หยุด</button>
+        <button onclick="resetPositions()" style="padding: 5px 8px;">🔄 รีเซ็ต</button>
+        <button class="warning" onclick="toggleFullscreenPitch()" style="padding: 5px 8px;">❌ ปิด</button>
       </div>
     </div>
 
@@ -340,10 +345,10 @@
       const toggleBtn = document.getElementById('fsToggleBtn');
       if (isFsMinimized) {
         content.style.display = 'none';
-        toggleBtn.textContent = '🔼 เมนู';
+        toggleBtn.innerHTML = '&gt;';
       } else {
         content.style.display = 'flex';
-        toggleBtn.textContent = '🔽';
+        toggleBtn.innerHTML = '&lt;';
       }
     }
 
@@ -363,6 +368,8 @@
       mode = newMode;
       document.getElementById('btn-drag').classList.toggle('active', mode === 'drag');
       document.getElementById('btn-draw').classList.toggle('active', mode === 'draw');
+      document.getElementById('fs-btn-drag').classList.toggle('active', mode === 'drag');
+      document.getElementById('fs-btn-draw').classList.toggle('active', mode === 'draw');
       canvas.style.pointerEvents = mode === 'draw' ? 'auto' : 'none';
       deselectPiece();
     }
@@ -507,16 +514,24 @@
       isRecording = !isRecording;
       const btnRec = document.getElementById('btn-rec');
       const btnConfirm = document.getElementById('btn-confirm');
+      const fsBtnRec = document.getElementById('fs-btn-rec');
+      const fsBtnConfirm = document.getElementById('fs-btn-confirm');
 
       if (isRecording) {
         btnRec.textContent = '⏹️ ยกเลิกอัด';
         btnRec.classList.add('danger');
         btnConfirm.style.display = 'inline-flex';
+        fsBtnRec.textContent = '⏹️ ยกเลิก';
+        fsBtnRec.classList.add('danger');
+        fsBtnConfirm.style.display = 'inline-flex';
         Object.keys(tempRecordedPaths).forEach(k => delete tempRecordedPaths[k]);
       } else {
         btnRec.textContent = '🎬 เริ่มอัด';
         btnRec.classList.remove('danger');
         btnConfirm.style.display = 'none';
+        fsBtnRec.textContent = '🎬 อัด';
+        fsBtnRec.classList.remove('danger');
+        fsBtnConfirm.style.display = 'none';
       }
     }
 
