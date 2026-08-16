@@ -151,9 +151,15 @@
       padding: 6px;
       border-radius: 8px;
       border: 1px solid #3f3f46;
+      align-items: center;
     }
     #pitch-container.fullscreen-mode .fs-floating-controls {
       display: flex;
+    }
+    .fs-content {
+      display: flex;
+      gap: 6px;
+      align-items: center;
     }
     
     .pitch-line { position: absolute; border: 2px solid rgba(255,255,255,0.75); pointer-events: none; }
@@ -261,9 +267,12 @@
 
   <div id="pitch-container">
     <div class="fs-floating-controls">
-      <button class="info" onclick="playAnimation()">▶️ เล่น</button>
-      <button class="danger" onclick="stopAnimation()">⏹️ หยุด</button>
-      <button class="warning" onclick="toggleFullscreenPitch()">❌ ปิดเต็มจอ</button>
+      <button class="warning" id="fsToggleBtn" onclick="toggleFsMinimize()" style="padding: 5px 8px;" title="ย่อ/ขยายเมนู">🔽</button>
+      <div class="fs-content" id="fsContent">
+        <button class="info" onclick="playAnimation()">▶️ เล่น</button>
+        <button class="danger" onclick="stopAnimation()">⏹️ หยุด</button>
+        <button class="warning" onclick="toggleFullscreenPitch()">❌ ปิดเต็มจอ</button>
+      </div>
     </div>
 
     <div class="halfway-line"></div>
@@ -308,6 +317,7 @@
     let isRecording = false;
     let selectedPiece = null;
     let animFrameId = null;
+    let isFsMinimized = false;
     
     const animPaths = {};
     const tempRecordedPaths = {};
@@ -322,6 +332,19 @@
     function toggleFullscreenPitch() {
       container.classList.toggle('fullscreen-mode');
       setTimeout(resizeCanvas, 50);
+    }
+
+    function toggleFsMinimize() {
+      isFsMinimized = !isFsMinimized;
+      const content = document.getElementById('fsContent');
+      const toggleBtn = document.getElementById('fsToggleBtn');
+      if (isFsMinimized) {
+        content.style.display = 'none';
+        toggleBtn.textContent = '🔼 เมนู';
+      } else {
+        content.style.display = 'flex';
+        toggleBtn.textContent = '🔽';
+      }
     }
 
     function toggleTrueFullscreen() {
