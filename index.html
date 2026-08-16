@@ -348,7 +348,8 @@
         });
       });
       const canvasDataUrl = canvas.toDataURL();
-      historyStack.push({ pieces: piecesData, canvasUrl: canvasDataUrl });
+      const sceneListData = JSON.parse(JSON.stringify(sceneList));
+      historyStack.push({ pieces: piecesData, canvasUrl: canvasDataUrl, sceneList: sceneListData });
       if (historyStack.length > 30) historyStack.shift();
     }
 
@@ -358,6 +359,10 @@
       }
       stopAnimation();
       const state = historyStack.pop();
+      
+      sceneList = state.sceneList || [];
+      if (currentScenePlaying > sceneList.length) currentScenePlaying = sceneList.length;
+      updateSceneIndicator();
       
       document.querySelectorAll('.piece').forEach(el => el.remove());
       
@@ -370,6 +375,13 @@
         el.style.top = p.top;
         container.appendChild(el);
         attachDrag(el);
+      });
+
+      document.querySelectorAll('.piece').forEach(el => el.classList.remove('has-anim'));
+      sceneList.forEach(scene => {
+        Object.keys(scene).forEach(id => {
+          document.getElementById(id)?.classList.add('has-anim');
+        });
       });
       
       const img = new Image();
@@ -593,6 +605,19 @@
         return alert('⚠️ คุณยังไม่ได้ขยับตัวผู้เล่นในฉากนี้เลยครับ!');
       }
       sceneList.push({ ...tempRecordedPaths });
+      
+      // พาหมากกลับมาที่จุดเริ่มต้นของฉากทันทีหลังบันทึก เพื่อให้พร้อมกดเล่นได้อย่างลื่นไหลโดยไม่ต้องวาร์ปกระโดด
+      const pRect = container.getBoundingClientRect();
+      Object.keys(tempRecordedPaths).forEach(id => {
+        const rawPath = tempRecordedPaths[id];
+        const el = document.getElementById(id);
+        if (el && rawPath && rawPath.length > 0) {
+          const startPt = rawPath[0];
+          el.style.left = (startPt.x / pRect.width) * 100 + '%';
+          el.style.top = (startPt.y / pRect.height) * 100 + '%';
+        }
+      });
+
       Object.keys(tempRecordedPaths).forEach(id => {
         document.getElementById(id)?.classList.add('has-anim');
       });
@@ -610,19 +635,6 @@
       }
 
       const pathsToPlay = sceneList[currentScenePlaying];
-      
-      // วาร์ปหมากไปจุดเริ่มต้นของฉากนั้นๆ ทันทีก่อนเล่นแอนิเมชัน
-      const pRect = container.getBoundingClientRect();
-      Object.keys(pathsToPlay).forEach(id => {
-        const rawPath = pathsToPlay[id];
-        const el = document.getElementById(id);
-        if (el && rawPath && rawPath.length > 0) {
-          const startPt = rawPath[0];
-          el.style.left = (startPt.x / pRect.width) * 100 + '%';
-          el.style.top = (startPt.y / pRect.height) * 100 + '%';
-        }
-      });
-
       currentScenePlaying++;
       updateSceneIndicator();
       runSceneAnimation(pathsToPlay);
