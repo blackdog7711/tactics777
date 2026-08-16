@@ -333,7 +333,8 @@
     
     let sceneList = [];
     let currentScenePlaying = 0;
-    let isWaitingForReset = false; // ตัวเช็คสถานะว่าต้องรีเซ็ตก่อนเริ่มรอบใหม่ไหม
+    let isWaitingForReset = false;
+    let initialPlayPositions = {}; // ตัวเก็บตำแหน่งเริ่มต้นของหมากทุกตัวก่อนเริ่มเล่น
     const tempRecordedPaths = {};
 
     let historyStack = [];
@@ -566,6 +567,15 @@
       sceneList.pop();
       if (currentScenePlaying > sceneList.length) currentScenePlaying = sceneList.length;
       isWaitingForReset = false;
+      
+      // อัปเดตลบจุดเหลือง (UI) ของหมากที่ไม่มีฉากเหลือแล้วออกทันที
+      document.querySelectorAll('.piece').forEach(el => el.classList.remove('has-anim'));
+      sceneList.forEach(scene => {
+        Object.keys(scene).forEach(id => {
+          document.getElementById(id)?.classList.add('has-anim');
+        });
+      });
+
       updateSceneIndicator();
       alert('🗑️ ลบฉากล่าสุดออกเรียบร้อย!');
     }
@@ -626,23 +636,34 @@
       stopAnimation();
       if (sceneList.length === 0) return alert('ยังไม่มีฉากที่บันทึกไว้เลยครับ!');
       
-      // ถ้าเล่นครบทุกฉากแล้ว และถึงรอบที่ต้องกดเพื่อรีเซ็ตหมากกลับตำแหน่งเดิม
+      // ถ้าเล่นครบทุกฉากแล้ว และถึงรอบที่ต้องกดเพื่อรีเซ็ตหมากทุกตัวกลับตำแหน่งเดิม
       if (currentScenePlaying >= sceneList.length && isWaitingForReset) {
         const pRect = container.getBoundingClientRect();
-        const firstScene = sceneList[0];
-        Object.keys(firstScene).forEach(id => {
-          const rawPath = firstScene[id];
+        Object.keys(initialPlayPositions).forEach(id => {
+          const pos = initialPlayPositions[id];
           const el = document.getElementById(id);
-          if (el && rawPath && rawPath.length > 0) {
-            const startPt = rawPath[0];
-            el.style.left = (startPt.x / pRect.width) * 100 + '%';
-            el.style.top = (startPt.y / pRect.height) * 100 + '%';
+          if (el && pos) {
+            el.style.left = (pos.x / pRect.width) * 100 + '%';
+            el.style.top = (pos.y / pRect.height) * 100 + '%';
           }
         });
         isWaitingForReset = false;
         currentScenePlaying = 0;
         updateSceneIndicator();
-        return; // รีเซ็ตเสร็จ จบรอบการกดปุ่มครั้งนี้ พอกกดเล่นอีกทีค่อยเริ่มฉากที่ 1
+        return; 
+      }
+
+      // ถ้ากำลังจะเริ่มเล่นจากฉากที่ 1 (รอบแรกสุดของลูป) ให้บันทึกตำแหน่งเริ่มต้นของหมากทุกตัวไว้ก่อน
+      if (currentScenePlaying === 0) {
+        initialPlayPositions = {};
+        const pRect = container.getBoundingClientRect();
+        document.querySelectorAll('.piece').forEach(el => {
+          const rect = el.getBoundingClientRect();
+          initialPlayPositions[el.id] = {
+            x: rect.left - pRect.left,
+            y: rect.top - pRect.top
+          };
+        });
       }
 
       // ถ้าเล่นถึงฉากสุดท้ายแล้ว ให้เซ็ตสถานะว่ากดรอบถัดไปต้องรีเซ็ต
@@ -654,7 +675,7 @@
       const pathsToPlay = sceneList[currentScenePlaying];
       currentScenePlaying++;
       if (currentScenePlaying >= sceneList.length) {
-        isWaitingForReset = true; // เมื่อเล่นฉากสุดท้ายจบ เตรียมตัวรีเซ็ตในคลิกถัดไป
+        isWaitingForReset = true; 
       }
       updateSceneIndicator();
       runSceneAnimation(pathsToPlay);
