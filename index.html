@@ -282,6 +282,7 @@
         <button id="fs-btn-confirm" class="active" onclick="confirmRecord()" style="display:none; padding: 5px 8px;">✅</button>
         <button onclick="undoAction()" style="padding: 5px 8px;" title="ย้อน">⏮️</button>
         <button onclick="playNextScene()" style="padding: 5px 8px;" title="เล่น">▶️</button>
+        <button onclick="resetPositions()" style="padding: 5px 8px;" title="รีเซ็ตตำแหน่ง">🔄</button>
         <button class="danger" onclick="deleteLastScene()" style="padding: 5px 8px;" title="ลบฉาก">🗑️</button>
         <select id="fsSpeedSelect" class="speed-select" onchange="syncSpeed(this.value)" style="padding: 4px;">
           <option value="0.5">0.5x</option>
@@ -606,7 +607,6 @@
       }
       sceneList.push({ ...tempRecordedPaths });
       
-      // พาหมากกลับมาที่จุดเริ่มต้นของฉากทันทีหลังบันทึก เพื่อให้พร้อมกดเล่นได้อย่างลื่นไหลโดยไม่ต้องวาร์ปกระโดด
       const pRect = container.getBoundingClientRect();
       Object.keys(tempRecordedPaths).forEach(id => {
         const rawPath = tempRecordedPaths[id];
@@ -630,11 +630,37 @@
     function playNextScene() {
       stopAnimation();
       if (sceneList.length === 0) return alert('ยังไม่มีฉากที่บันทึกไว้เลยครับ!');
+      
       if (currentScenePlaying >= sceneList.length) {
         currentScenePlaying = 0;
       }
 
+      // เมื่อเริ่มเล่นรอบใหม่ (ฉากที่ 0) ให้หมากทุกตัวกลับมาตั้งที่จุดเริ่มต้นของฉากแรกก่อน
+      const pRect = container.getBoundingClientRect();
+      if (currentScenePlaying === 0 && sceneList.length > 0) {
+        const firstScene = sceneList[0];
+        Object.keys(firstScene).forEach(id => {
+          const rawPath = firstScene[id];
+          const el = document.getElementById(id);
+          if (el && rawPath && rawPath.length > 0) {
+            const startPt = rawPath[0];
+            el.style.left = (startPt.x / pRect.width) * 100 + '%';
+            el.style.top = (startPt.y / pRect.height) * 100 + '%';
+          }
+        });
+      }
+
       const pathsToPlay = sceneList[currentScenePlaying];
+      Object.keys(pathsToPlay).forEach(id => {
+        const rawPath = pathsToPlay[id];
+        const el = document.getElementById(id);
+        if (el && rawPath && rawPath.length > 0) {
+          const startPt = rawPath[0];
+          el.style.left = (startPt.x / pRect.width) * 100 + '%';
+          el.style.top = (startPt.y / pRect.height) * 100 + '%';
+        }
+      });
+
       currentScenePlaying++;
       updateSceneIndicator();
       runSceneAnimation(pathsToPlay);
