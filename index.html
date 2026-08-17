@@ -349,7 +349,15 @@
       ball: { left: '60%', top: '45%' }
     };
 
+    let baseInitialPositions = {};
     let sceneStartPositions = {};
+
+    function initBasePositions() {
+      baseInitialPositions = {};
+      document.querySelectorAll('.piece').forEach(el => {
+        baseInitialPositions[el.id] = { left: el.style.left, top: el.style.top };
+      });
+    }
 
     function pushHistory() {
       const piecesData = [];
@@ -391,6 +399,10 @@
         el.style.top = p.top;
         container.appendChild(el);
         attachDrag(el);
+      });
+
+      document.querySelectorAll('.piece').forEach(el => {
+        baseInitialPositions[el.id] = { left: el.style.left, top: el.style.top };
       });
 
       document.querySelectorAll('.piece').forEach(el => el.classList.remove('has-anim'));
@@ -485,7 +497,7 @@
         });
       });
 
-      localStorage.setItem(key, JSON.stringify({ pieces: savedPieces, scenes: sceneList }));
+      localStorage.setItem(key, JSON.stringify({ pieces: savedPieces, scenes: sceneList, baseInitialPositions }));
       updateSlotUI();
       alert(`✅ บันทึกเข้า Slot ${slot} สำเร็จ!`);
     }
@@ -504,6 +516,11 @@
       const parsed = JSON.parse(dataStr);
       const savedPieces = Array.isArray(parsed) ? parsed : parsed.pieces;
       sceneList = !Array.isArray(parsed) && parsed.scenes ? parsed.scenes : [];
+      if (!Array.isArray(parsed) && parsed.baseInitialPositions) {
+        baseInitialPositions = parsed.baseInitialPositions;
+      } else {
+        baseInitialPositions = {};
+      }
 
       savedPieces.forEach(p => {
         const el = document.createElement('div');
@@ -515,6 +532,9 @@
         container.appendChild(el);
         attachDrag(el);
         defaultPos[p.id] = { left: p.left, top: p.top };
+        if (!baseInitialPositions[p.id]) {
+          baseInitialPositions[p.id] = { left: p.left, top: p.top };
+        }
       });
 
       historyStack = [];
@@ -555,6 +575,7 @@
       container.appendChild(newPiece);
       attachDrag(newPiece);
       defaultPos[newPiece.id] = { left: '50%', top: '50%' };
+      baseInitialPositions[newPiece.id] = { left: '50%', top: '50%' };
       selectPiece(newPiece);
     }
 
@@ -572,6 +593,7 @@
       isWaitingForReset = false;
       updateSceneIndicator();
       document.querySelectorAll('.piece').forEach(el => el.classList.remove('has-anim'));
+      initBasePositions();
       deselectPiece();
       alert('ล้างข้อมูลฉากทั้งหมดแล้ว!');
     }
@@ -589,6 +611,10 @@
         });
       });
 
+      if (sceneList.length === 0) {
+        initBasePositions();
+      }
+
       updateSceneIndicator();
       alert('🗑️ ลบฉากล่าสุดออกเรียบร้อย!');
     }
@@ -601,6 +627,9 @@
       const fsBtnConfirm = document.getElementById('fs-btn-confirm');
 
       if (isRecording) {
+        if (sceneList.length === 0) {
+          initBasePositions();
+        }
         btnRec.textContent = '⏹️ ยกเลิก';
         btnRec.classList.add('danger');
         btnConfirm.style.display = 'inline-flex';
@@ -633,6 +662,11 @@
       if (Object.keys(tempRecordedPaths).length === 0) {
         return alert('⚠️ คุณยังไม่ได้ขยับตัวผู้เล่นในฉากนี้เลยครับ!');
       }
+      
+      if (sceneList.length === 0) {
+        initBasePositions();
+      }
+
       sceneList.push({ ...tempRecordedPaths });
       
       Object.keys(tempRecordedPaths).forEach(id => {
@@ -649,7 +683,7 @@
       stopAnimation();
       if (sceneList.length === 0) return alert('ยังไม่มีฉากที่บันทึกไว้เลยครับ!');
       
-      // ถ้าเล่นครบทุกฉากแล้ว (จบรูปลูป) กดปุ่ม "เล่น" ครั้งนี้ จะรีเซ็ตตำแหน่งกลับอย่างเดียวทันที และหยุดรอ ไม่เล่นต่อทันที
+      // ถ้าเล่นครบทุกฉากแล้ว กดเล่นอีกครั้ง -> รีเซ็ตตำแหน่งกลับไปยังตำแหน่งก่อนเริ่มลาก/อัดฉากทันทีแบบยังไม่เล่นต่อ
       if (currentScenePlaying >= sceneList.length && isWaitingForReset) {
         Object.keys(sceneStartPositions).forEach(id => {
           const el = document.getElementById(id);
@@ -665,16 +699,13 @@
         return; 
       }
 
-      // ถ้าเป็นการเริ่มเล่นรอบใหม่ (จากฉาก 0) ให้สแกนหาหมากทุกตัวที่มีการอัดฉาก แล้วบันทึกตำแหน่งเริ่มต้นเก็บไว้
+      // เริ่มเล่นรอบใหม่ (จากฉาก 0) บันทึกตำแหน่งตั้งต้นเดิมก่อนเริ่มลากฉาก
       if (currentScenePlaying === 0) {
-        sceneStartPositions = {};
-        sceneList.forEach(scene => {
-          Object.keys(scene).forEach(id => {
-            const el = document.getElementById(id);
-            if (el && !sceneStartPositions[id]) {
-              sceneStartPositions[id] = { left: el.style.left, top: el.style.top };
-            }
-          });
+        sceneStartPositions = { ...baseInitialPositions };
+        document.querySelectorAll('.piece').forEach(el => {
+          if (!sceneStartPositions[el.id]) {
+            sceneStartPositions[el.id] = { left: el.style.left, top: el.style.top };
+          }
         });
       }
 
@@ -780,6 +811,7 @@
           el.style.top = defaultPos[id].top;
         }
       });
+      initBasePositions();
       clearCanvas();
       deselectPiece();
     }
@@ -827,7 +859,12 @@
       recordStep(activePiece.id, x, y);
     }
 
-    function stopDrag() { activePiece = null; }
+    function stopDrag() { 
+      if (activePiece && sceneList.length === 0) {
+        baseInitialPositions[activePiece.id] = { left: activePiece.style.left, top: activePiece.style.top };
+      }
+      activePiece = null; 
+    }
 
     let isDrawing = false, startX, startY;
     canvas.addEventListener('mousedown', startDraw);
