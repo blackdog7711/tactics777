@@ -349,6 +349,9 @@
       ball: { left: '60%', top: '45%' }
     };
 
+    // เก็บตำแหน่งเริ่มต้นก่อนเริ่มเล่นฉากแรกของหมากที่ถูกอัดฉาก
+    let sceneStartPositions = {};
+
     function pushHistory() {
       const piecesData = [];
       document.querySelectorAll('.piece').forEach(el => {
@@ -647,10 +650,11 @@
       stopAnimation();
       if (sceneList.length === 0) return alert('ยังไม่มีฉากที่บันทึกไว้เลยครับ!');
       
+      // ถ้าเล่นครบทุกฉากแล้ว และกดเล่นซ้ำอีกรอบ -> รีเซ็ตหมากที่อัดฉากกลับตำแหน่งแรกสุดก่อนเล่นฉากแรก
       if (currentScenePlaying >= sceneList.length && isWaitingForReset) {
-        Object.keys(defaultPos).forEach(id => {
+        Object.keys(sceneStartPositions).forEach(id => {
           const el = document.getElementById(id);
-          const pos = defaultPos[id];
+          const pos = sceneStartPositions[id];
           if (el && pos) {
             el.style.left = pos.left;
             el.style.top = pos.top;
@@ -662,9 +666,17 @@
         return; 
       }
 
-      if (currentScenePlaying >= sceneList.length) {
-        currentScenePlaying = 0;
-        isWaitingForReset = true;
+      // ถ้าเป็นการเริ่มต้นเล่นรอบใหม่จากฉากที่ 0 ให้เก็บบันทึกตำแหน่งปัจจุบันของหมากที่มีแอนิเมชันไว้ก่อน
+      if (currentScenePlaying === 0) {
+        sceneStartPositions = {};
+        sceneList.forEach(scene => {
+          Object.keys(scene).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+              sceneStartPositions[id] = { left: el.style.left, top: el.style.top };
+            }
+          });
+        });
       }
 
       const pathsToPlay = sceneList[currentScenePlaying];
@@ -760,6 +772,8 @@
       pushHistory();
       stopAnimation();
       isWaitingForReset = false;
+      currentScenePlaying = 0;
+      updateSceneIndicator();
       Object.keys(defaultPos).forEach(id => {
         const el = document.getElementById(id);
         if (el) {
