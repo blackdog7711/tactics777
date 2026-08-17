@@ -349,7 +349,6 @@
       ball: { left: '60%', top: '45%' }
     };
 
-    // เก็บตำแหน่งเริ่มต้นตั้งแต่ก่อนกดเล่นฉากแรกสุด สำหรับทุกหมากที่ถูกอัดฉาก
     let sceneStartPositions = {};
 
     function pushHistory() {
@@ -650,7 +649,7 @@
       stopAnimation();
       if (sceneList.length === 0) return alert('ยังไม่มีฉากที่บันทึกไว้เลยครับ!');
       
-      // ถ้าเล่นครบทุกฉากแล้ว และกดเล่นซ้ำ -> รีเซ็ตทุกหมากที่มีการอัดฉาก กลับไปตำแหน่งก่อนเริ่มเล่นฉาก 1 ทันที
+      // ถ้าเล่นครบทุกฉากแล้ว (จบรูปลูป) กดปุ่ม "เล่น" ครั้งนี้ จะรีเซ็ตตำแหน่งกลับอย่างเดียวทันที และหยุดรอ ไม่เล่นต่อทันที
       if (currentScenePlaying >= sceneList.length && isWaitingForReset) {
         Object.keys(sceneStartPositions).forEach(id => {
           const el = document.getElementById(id);
@@ -666,7 +665,7 @@
         return; 
       }
 
-      // ถ้าเป็นการเริ่มเล่นรอบใหม่ (จากฉาก 0) ให้สแกนหาหมากทุกตัวที่มีการอัดฉากในทุกๆ ฉาก แล้วบันทึกตำแหน่งเริ่มต้นเก็บไว้
+      // ถ้าเป็นการเริ่มเล่นรอบใหม่ (จากฉาก 0) ให้สแกนหาหมากทุกตัวที่มีการอัดฉาก แล้วบันทึกตำแหน่งเริ่มต้นเก็บไว้
       if (currentScenePlaying === 0) {
         sceneStartPositions = {};
         sceneList.forEach(scene => {
